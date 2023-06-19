@@ -1,0 +1,21 @@
+apiVersion: 'ingressudp.k8s.f5net.com/v1'
+kind: F5SPKIngressUDP
+metadata:
+  name: udp-listener
+  namespace: demoapp
+service:
+  name: udp-listener
+  port: 5005
+spec:
+  destinationAddress: 10.1.10.210
+  destinationPort: 65000
+  idleTimeout: 30
+  loadBalancingMethod: 'RATIO_LEAST_CONN_MEMBER'
+  vlans:
+    vlanList:
+      - external
+    disableListedVlans: false
+monitors:
+  icmp:
+    - interval: 3
+    - timeout: 10

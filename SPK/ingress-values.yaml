@@ -1,0 +1,127 @@
+imageCredentials:
+  name: regcred
+  registry: default-route-openshift-image-registry.apps.ocp.f5-udf.com
+  username: f5admin
+  password: 'f5admin_token'
+
+controller:
+  image:
+    repository: default-route-openshift-image-registry.apps.ocp.f5-udf.com/spk-ingress
+    username: 'f5admin'
+    password: 'f5admin_token'
+    name: f5ingress
+    pullPolicy: IfNotPresent
+
+  fluentbit_sidecar:
+    enabled: false
+
+  service:
+    create: true
+    type: ClusterIP
+
+  watchNamespace: demoapp
+
+  f5_lic_helper:
+    enabled: true
+    cwcNamespace: 'spk-telemetry'
+    image:
+      repository: 'default-route-openshift-image-registry.apps.ocp.f5-udf.com/spk-ingress'
+    rabbitmqCerts:
+      ca_root_cert:
+      client_cert:
+      client_key:
+
+tmm:
+  name: f5-tmm
+  icni2:
+    enabled: true
+  bfdToOvn:
+    enabled: true
+  replicaCount: 1
+  prometheus:
+    create: false
+
+  image:
+    repository: default-route-openshift-image-registry.apps.ocp.f5-udf.com/spk-ingress
+    username: 'f5admin'
+    password: 'f5admin_token'
+    name: tmm-img
+    pullPolicy: IfNotPresent
+  topologyManager: true
+  runtimeClassName:
+
+  pod:
+    annotations:
+      openshift.io/scc: privileged
+
+  customEnvVars:
+    - name: CONFIG_VIEWER_ENABLE
+      value: 'TRUE'
+
+    - name: TMM_MAPRES_DELAY_MS
+      value: '6000'
+
+    - name: TMM_MAPRES_VERBOSITY
+      value: 'debug'
+
+    - name: TMM_MAPRES_ADDL_VETHS_ON_DP
+      value: 'TRUE'
+
+    - name: PAL_CPU_SET
+      value: 0,1
+
+    - name: TMM_LOG_LEVEL
+      value: 'Debug'
+
+  cniNetworks: external-spk,internal-spk
+
+  grpc:
+    enabled: true
+    name: grpc-svc
+    port: 8750
+
+    annotations:
+      f5.com/grpc-services: enabled
+
+    extraEnvs:
+      - name: GRPC_SERVICE_NAME
+        value: 'grpc-svc'
+
+  sessiondb:
+    useExternalStorage: 'false'
+
+  k8sprobes:
+    enables: false
+
+  hugepages:
+    enabled: true
+
+  resources:
+    limits:
+      hugepages-2Mi: '3Gi'
+      cpu: '2'
+      memory: '2048Mi'
+
+    requests:
+      hugepages-2Mi: '1024Mi'
+      cpu: '2'
+      memory: '1024Mi'
+
+  dynamicRouting:
+    enabled: false
+
+  service:
+    create: true
+    name: f5-tmm-service
+    type: ClusterIP
+
+debug:
+  image:
+    repository: default-route-openshift-image-registry.apps.ocp.f5-udf.com/spk-ingress
+    username: 'f5admin'
+    password: 'f5admin_token'
+    name: f5-debug-sidecar
+    pullPolicy: IfNotPresent
+
+f5-toda-logging:
+  enabled: false

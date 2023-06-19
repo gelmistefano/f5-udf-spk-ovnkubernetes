@@ -1,0 +1,22 @@
+apiVersion: 'ingresstcp.k8s.f5net.com/v1'
+kind: F5SPKIngressTCP
+metadata:
+  name: 'nginx-web-snat'
+  namespace: 'demoapp'
+service:
+  name: nginx-service
+  port: 8080
+spec:
+  destinationAddress: '10.1.10.200'
+  destinationPort: 80
+  idleTimeout: 30
+  loadBalancingMethod: 'ROUND_ROBIN'
+  snat: 'SRC_TRANS_AUTOMAP'
+  vlans:
+    vlanList:
+      - external
+    disableListedVlans: false
+monitors:
+  tcp:
+    - interval: 3
+    - timeout: 10
