@@ -12,7 +12,7 @@ if [ ! -f "$file1" ] || [ ! -f "$file2" ]; then
     exit 1
 fi
 
-oc login -u f5admin -p f5admin > /dev/null 2>&1
+oc login -u f5admin -p f5admin --insecure-skip-tls-verify > /dev/null 2>&1
 
 oclogin=$(oc whoami 2>&1)
 

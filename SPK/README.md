@@ -589,6 +589,11 @@ oc project spk-ingress
 ### Multus Configuration
 
 The Controller uses OpenShift network node policies and network attachment definitions to create Service Proxy TMM’s interface list.
+
+_NB: SPK w/ OVNKubernetes requires a separated phisical interface attached on same subnet used for MGMT and CNI to reach correctly all services that are running on same node where SPK is deployed. On UDF, we cannot do that, so we dedicate the worker-1 node to SPK and we will use ore nodes to deploy the demoapps._
+
+In this scenario, we can use the primary interface for Internal traffic and the secondary interface for External traffic. The following steps will create the necessary network attachment definitions for the Service Proxy TMM’s.
+
 Configure Multus interfaces:
 
 ```bash

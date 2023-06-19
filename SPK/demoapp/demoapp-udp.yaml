@@ -19,6 +19,8 @@ spec:
       labels:
         app: udp-listener
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/worker-apps: demo
       containers:
         - name: udp-listener
           image: mendhak/udp-listener

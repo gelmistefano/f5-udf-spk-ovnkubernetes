@@ -85,13 +85,28 @@ yq v4.34.1 from Mike Farah (mikefarah) installed
 SPK Installed, verify with: oc get pods -n spk-ingress
 ```
 
+After this step, you can verify the installation with `oc get pods -n spk-ingress`, wait until all pods are in `Running` state:
+
+```bash
+ubuntu@ocp-provisioner:~/f5-udf-spk-ovnkubernetes/SPK$ oc get pods -n spk-ingress
+NAME                                   READY   STATUS    RESTARTS   AGE
+f5-tmm-6795b5dcf8-sr2np                2/2     Running   0          56s
+f5ingress-f5ingress-85ffc97c7f-7ww56   2/2     Running   0          56s
+```
+
+Now your SPK is installed and ready to use.
+
 ### BUG Found - cwc pod not ready
 
 The script waits until CWC service is ready, but sometimes it fails. In this case, you can check the status of the pod with `oc get pods -n spk-telemetry` and verify the status with `oc describe pods -n spk-telemetry <CWC POD NAME>`.
 
 ## Manual Installation
 
-You can follow the guide [here](SPK/README.md) to deploy SPK manually.
+If you want, you can perform manual installation to understand better all steps. You can follow the guide [here](SPK/README.md) to deploy SPK manually.
+
+## SPK Configuration
+
+Now SPK is deployed, you can configure it to integrate with OVNKubernetes and your applications.
 
 ### Interfaces
 
@@ -134,7 +149,45 @@ EOF
 
 ## Install DemoApps
 
-You can use two different demo applications to test the F5 Service Proxy TMM. The first is a simple web application, and the second is a more complex application that uses a database and multiple miocroservices.
+You can use two different demo applications to test the F5 Service Proxy TMM. The first is a simple web application, and the second is a more complex application that uses a database and multiple miocroservices, the last application is a simple UDP application that write in log what receives.
+
+_NB: SPK w/ OVNKubernetes requires a separated phisical interface attached on same subnet used for MGMT and CNI to reach correctly all services that are running on same node where SPK is deployed. On UDF, we cannot do that, so we dedicate the worker-1 node to SPK and we will use ore nodes to deploy the demoapps._
+
+### UDF requirements - Dedicate nodes for demoapps
+
+Use all worker nodes except worker with HP to deploy demoapps. To do this, label all nodes with `node-role.kubernetes.io/worker-apps=yes`, except worker with `worker-hp` label.
+
+Verify nodes:
+
+```bash
+ubuntu@ocp-provisioner:~$ oc get nodes
+NAME                      STATUS   ROLES              AGE     VERSION
+master-1.ocp.f5-udf.com   Ready    master             3d18h   v1.24.0+dc5a2fd
+master-2.ocp.f5-udf.com   Ready    master             3d18h   v1.24.0+dc5a2fd
+master-3.ocp.f5-udf.com   Ready    master             3d18h   v1.24.0+dc5a2fd
+worker-1.ocp.f5-udf.com   Ready    worker,worker-hp   3d18h   v1.24.0+dc5a2fd
+worker-2.ocp.f5-udf.com   Ready    worker             3d18h   v1.24.0+dc5a2fd
+worker-3.ocp.f5-udf.com   Ready    worker             3d18h   v1.24.0+dc5a2fd
+```
+
+Label nodes (our case worker-2 and worker-3):
+
+```bash
+ubuntu@ocp-provisioner:~$ oc label node worker-2.ocp.f5-udf.com node-role.kubernetes.io/worker-apps=demo
+node/worker-2.ocp.f5-udf.com labeled
+
+ubuntu@ocp-provisioner:~$ oc label node worker-3.ocp.f5-udf.com node-role.kubernetes.io/worker-apps=demo
+node/worker-3.ocp.f5-udf.com labeled
+
+ubuntu@ocp-provisioner:~$ oc get nodes
+NAME                      STATUS   ROLES                AGE     VERSION
+master-1.ocp.f5-udf.com   Ready    master               3d18h   v1.24.0+dc5a2fd
+master-2.ocp.f5-udf.com   Ready    master               3d18h   v1.24.0+dc5a2fd
+master-3.ocp.f5-udf.com   Ready    master               3d18h   v1.24.0+dc5a2fd
+worker-1.ocp.f5-udf.com   Ready    worker,worker-hp     3d18h   v1.24.0+dc5a2fd
+worker-2.ocp.f5-udf.com   Ready    worker,worker-apps   3d18h   v1.24.0+dc5a2fd
+worker-3.ocp.f5-udf.com   Ready    worker,worker-apps   3d18h   v1.24.0+dc5a2fd
+```
 
 ### Simple Web Application - NGINX
 
@@ -164,11 +217,12 @@ Result should be a JSON with source IP address of the TMM Pod:
 ```json
 {
   "source_ip": "10.1.1.100",
-  "server_name": "nginx-deployment-77f748cf9-9rfsb"
+  "source_port": "54256",
+  "server_name": "nginx-deployment-77f748cf9-hx75h"
 }
 ```
 
-You can also apply the TCP Ingress resource with SNAT disabled:
+You can also apply the TCP Ingress resource with SNAT disabled (wait few seconds after apply the resource w/ SNAT, otherwise the CRD will be not correcly configured):
 
 ```bash
 oc apply -f /home/ubuntu/f5-udf-spk-ovnkubernetes/SPK/demoapp/ingresstcp-no-snat.yaml
@@ -184,8 +238,9 @@ Result should be a JSON with source IP address of the client:
 
 ```json
 {
-  "source_ip": "10.1.1.4",
-  "server_name": "nginx-deployment-77f748cf9-9rfsb"
+  "source_ip": "10.1.10.4",
+  "source_port": "35168",
+  "server_name": "nginx-deployment-77f748cf9-hx75h"
 }
 ```
 
@@ -197,7 +252,7 @@ Proceed to create privileges for the Service Account, and then deploy the Online
 oc project demoapp
 oc create sa onlineboutique-sa
 oc adm policy add-scc-to-user privileged -z onlineboutique-sa
-oc apply -f /home/ubuntu/f5-udf-spk-ovnkubernetes/SPK/demoapp/onlineboutique.yaml
+oc apply -f /home/ubuntu/f5-udf-spk-ovnkubernetes/SPK/demoapp/demoapp-onlineboutique.yaml
 ```
 
 After deployed, you can create the TCP Ingress resource with SNAT disabled:
@@ -220,7 +275,7 @@ You can also verify from windows Jumphost.
 Deploy the UDP service:
 
 ```bash
-oc apply -f /home/ubuntu/f5-udf-spk-ovnkubernetes/SPK/demoapp/udp-listener.yaml
+oc apply -f /home/ubuntu/f5-udf-spk-ovnkubernetes/SPK/demoapp/demoapp-udp.yaml
 ```
 
 The service receives UDP packets on port 5005 and log in stdout.
